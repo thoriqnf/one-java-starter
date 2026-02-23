@@ -1,5 +1,13 @@
 package com.example.domain;
 
+/**
+ * Domain Layer: Account Entity
+ * 
+ * SOLID Principle: SRP (Single Responsibility Principle)
+ * This class is solely responsible for modeling the core business rules of an
+ * Account (balance validation, debit/credit math). It has no dependency on
+ * databases, frameworks, or external services.
+ */
 public class Account {
 
     private final String accountNumber;

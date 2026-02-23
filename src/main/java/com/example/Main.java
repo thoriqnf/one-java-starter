@@ -7,6 +7,13 @@ import com.example.service.WithdrawalService;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
+/**
+ * Application Entry Point / Configurator
+ * 
+ * This class acts as the "Composition Root".
+ * It is responsible for setting up the database connection,
+ * wiring up dependencies (Dependency Injection), and managing transactions.
+ */
 public class Main {
 
     public static void main(String[] args) {

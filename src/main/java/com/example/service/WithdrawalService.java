@@ -3,6 +3,13 @@ package com.example.service;
 import com.example.domain.Account;
 import com.example.repository.AccountRepository;
 
+/**
+ * Service Layer: Use Cases
+ * 
+ * Orchestrates the withdrawal process. Similar to TransferService,
+ * it fetches the domain object, applies business rules (flat fee),
+ * and saves the state via the repository. 
+ */
 public class WithdrawalService {
 
     private static final double FLAT_FEE = 2500.0;

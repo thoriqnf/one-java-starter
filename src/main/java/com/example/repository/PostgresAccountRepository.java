@@ -7,6 +7,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+/**
+ * Infrastructure Layer: PostgreSQL Implementation
+ * 
+ * This class handles all actual database queries for Accounts.
+ * 
+ * Security feature: Uses PreparedStatement for all queries to prevent SQL Injection attacks.
+ * It also uses try-with-resources to ensure database connections and statements are automatically closed to prevent memory leaks.
+ */
 public class PostgresAccountRepository implements AccountRepository {
 
     private final Connection connection;
