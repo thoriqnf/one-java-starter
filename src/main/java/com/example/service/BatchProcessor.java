@@ -79,6 +79,7 @@ public class BatchProcessor {
      * @return true if successful, false if failed
      */
     private boolean processSingleTransfer(Transaction t) {
+        String thread = Thread.currentThread().getName();
         locker.lockAccounts(t.getSourceAccount(), t.getTargetAccount());
         try {
             Account source = repository.findByAccountNumber(t.getSourceAccount());
@@ -91,9 +92,13 @@ public class BatchProcessor {
             repository.update(target);
 
             successCount.incrementAndGet();
+            System.out.printf("  [%s] %s → %s : %.2f ✓%n",
+                    thread, t.getSourceAccount(), t.getTargetAccount(), t.getAmount());
             return true;
         } catch (Exception e) {
             failCount.incrementAndGet();
+            System.out.printf("  [%s] %s → %s : %.2f ✗ (%s)%n",
+                    thread, t.getSourceAccount(), t.getTargetAccount(), t.getAmount(), e.getMessage());
             return false;
         } finally {
             locker.unlockAccounts(t.getSourceAccount(), t.getTargetAccount());

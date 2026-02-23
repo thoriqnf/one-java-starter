@@ -249,26 +249,50 @@ mvn exec:java -Dexec.mainClass="com.example.demo2.Demo2Finished"
 ### Expected Output
 
 ```
+===== BATCH TRANSACTION PROCESSOR =====
+
+Transfers to process:
+  1. A001 → A002 : 5000.00
+  2. A002 → A001 : 3000.00
+  3. A001 → A002 : 8000.00
+  4. A002 → A001 : 2000.00
+  5. A001 → A002 : 10000.00
+  6. A002 → A001 : 7000.00
+
 ==================================================
   ROUND 1: WITHOUT LOCKS (UNSAFE)
 ==================================================
 
-Initial Balances: A001=100000.00, A002=50000.00 (Total=150000.00)
-Processing 20 transfers with 4 threads (NO LOCKS)...
+Initial: A001=100000.00, A002=50000.00 (Total=150000.00)
 
-Final Balances: A001=108000.00, A002=62000.00 (Total=170000.00)
-Balance check: 150000.00 vs 170000.00 ✗ MONEY LOST!
+  [thread-1] READ  A001=100000.00, A002=50000.00
+  [thread-2] READ  A002=50000.00, A001=100000.00
+  [thread-3] READ  A001=100000.00, A002=50000.00     ← STALE! Same values as thread-1
+  [thread-4] READ  A002=50000.00, A001=100000.00     ← STALE! Same values as thread-2
+  [thread-1] WRITE A001=95000.00, A002=55000.00      (A001 → A002 : 5000.00)
+  [thread-3] WRITE A001=92000.00, A002=58000.00      (A001 → A002 : 8000.00)
+  [thread-2] WRITE A002=47000.00, A001=103000.00     ← thread-1's write LOST!
+  ...
+
+Final: A001=109000.00, A002=51000.00 (Total=160000.00)
+Expected total: 150000.00, Actual total: 160000.00 → ✗ MONEY LOST! (race condition)
 
 ==================================================
   ROUND 2: WITH LOCKS (SAFE)
 ==================================================
 
-Initial Balances: A001=100000.00, A002=50000.00 (Total=150000.00)
-Processing 20 transfers with 4 threads (WITH LOCKS)...
+Initial: A001=100000.00, A002=50000.00 (Total=150000.00)
 
-Successful: 20, Failed: 0
-Final Balances: A001=100000.00, A002=50000.00 (Total=150000.00)
-Balance check: 150000.00 vs 150000.00 ✓ (no money lost!)
+  [thread-1] A001 → A002 : 5000.00 ✓
+  [thread-2] A002 → A001 : 3000.00 ✓
+  [thread-3] A001 → A002 : 8000.00 ✓
+  [thread-4] A002 → A001 : 2000.00 ✓
+  [thread-3] A001 → A002 : 10000.00 ✓
+  [thread-2] A002 → A001 : 7000.00 ✓
+
+Successful: 6, Failed: 0
+Final: A001=89000.00, A002=61000.00 (Total=150000.00)
+Expected total: 150000.00, Actual total: 150000.00 → ✓ NO MONEY LOST!
 ```
 
 ---

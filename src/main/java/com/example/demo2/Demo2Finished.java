@@ -13,7 +13,6 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -21,9 +20,9 @@ import java.util.concurrent.Future;
 /**
  * Demo 2 Finished — Batch Transaction Processor (Unsafe vs Safe Comparison)
  *
- * This runs the same batch of transfers TWICE:
- * 1. WITHOUT locks — shows race conditions and lost money
- * 2. WITH locks — shows correct, consistent balances
+ * This runs the same batch of 6 transfers TWICE:
+ * 1. WITHOUT locks — shows race conditions with READ/WRITE logging
+ * 2. WITH locks — shows correct, consistent balances with LOCK/UNLOCK logging
  */
 public class Demo2Finished {
 
@@ -36,10 +35,19 @@ public class Demo2Finished {
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
             conn.setAutoCommit(false);
 
-            List<Transaction> batch = generateBatch(20);
+            List<Transaction> batch = createBatch();
+
+            // Show the batch first
+            System.out.println("===== BATCH TRANSACTION PROCESSOR =====\n");
+            System.out.println("Transfers to process:");
+            for (int i = 0; i < batch.size(); i++) {
+                Transaction t = batch.get(i);
+                System.out.printf("  %d. %s → %s : %.2f%n", i + 1,
+                        t.getSourceAccount(), t.getTargetAccount(), t.getAmount());
+            }
 
             // ========== ROUND 1: WITHOUT LOCKS (UNSAFE) ==========
-            System.out.println("=".repeat(50));
+            System.out.println("\n" + "=".repeat(50));
             System.out.println("  ROUND 1: WITHOUT LOCKS (UNSAFE)");
             System.out.println("=".repeat(50));
 
@@ -48,14 +56,12 @@ public class Demo2Finished {
 
             double initialTotal = repository.findByAccountNumber("A001").getBalance()
                     + repository.findByAccountNumber("A002").getBalance();
-            System.out.printf("%nInitial Balances: A001=%.2f, A002=%.2f (Total=%.2f)%n",
+            System.out.printf("%nInitial: A001=%.2f, A002=%.2f (Total=%.2f)%n%n",
                     repository.findByAccountNumber("A001").getBalance(),
                     repository.findByAccountNumber("A002").getBalance(),
                     initialTotal);
 
-            System.out.printf("Processing %d transfers with 4 threads (NO LOCKS)...%n%n", batch.size());
-
-            // Process WITHOUT locks — just raw threads
+            // Process WITHOUT locks — shows race condition with detailed logging
             runUnsafe(repository, batch);
             conn.commit();
 
@@ -63,13 +69,13 @@ public class Demo2Finished {
             double unsafeA002 = repository.findByAccountNumber("A002").getBalance();
             double unsafeTotal = unsafeA001 + unsafeA002;
 
-            System.out.printf("Final Balances: A001=%.2f, A002=%.2f (Total=%.2f)%n", unsafeA001, unsafeA002, unsafeTotal);
-            System.out.printf("Balance check: %.2f vs %.2f %s%n%n",
+            System.out.printf("%nFinal: A001=%.2f, A002=%.2f (Total=%.2f)%n", unsafeA001, unsafeA002, unsafeTotal);
+            System.out.printf("Expected total: %.2f, Actual total: %.2f → %s%n",
                     initialTotal, unsafeTotal,
-                    Math.abs(initialTotal - unsafeTotal) < 0.01 ? "✓" : "✗ MONEY LOST!");
+                    Math.abs(initialTotal - unsafeTotal) < 0.01 ? "✓ OK" : "✗ MONEY LOST! (race condition)");
 
             // ========== ROUND 2: WITH LOCKS (SAFE) ==========
-            System.out.println("=".repeat(50));
+            System.out.println("\n" + "=".repeat(50));
             System.out.println("  ROUND 2: WITH LOCKS (SAFE)");
             System.out.println("=".repeat(50));
 
@@ -77,14 +83,12 @@ public class Demo2Finished {
 
             initialTotal = repository.findByAccountNumber("A001").getBalance()
                     + repository.findByAccountNumber("A002").getBalance();
-            System.out.printf("%nInitial Balances: A001=%.2f, A002=%.2f (Total=%.2f)%n",
+            System.out.printf("%nInitial: A001=%.2f, A002=%.2f (Total=%.2f)%n%n",
                     repository.findByAccountNumber("A001").getBalance(),
                     repository.findByAccountNumber("A002").getBalance(),
                     initialTotal);
 
-            System.out.printf("Processing %d transfers with 4 threads (WITH LOCKS)...%n%n", batch.size());
-
-            // Process WITH locks — using BatchProcessor
+            // Process WITH locks — using BatchProcessor (safe)
             AccountLocker locker = new AccountLocker();
             BatchProcessor processor = new BatchProcessor(repository, locker, 4);
             processor.processBatch(batch);
@@ -95,11 +99,11 @@ public class Demo2Finished {
             double safeA002 = repository.findByAccountNumber("A002").getBalance();
             double safeTotal = safeA001 + safeA002;
 
-            System.out.printf("Successful: %d, Failed: %d%n", processor.getSuccessCount(), processor.getFailCount());
-            System.out.printf("Final Balances: A001=%.2f, A002=%.2f (Total=%.2f)%n", safeA001, safeA002, safeTotal);
-            System.out.printf("Balance check: %.2f vs %.2f %s%n",
+            System.out.printf("%nSuccessful: %d, Failed: %d%n", processor.getSuccessCount(), processor.getFailCount());
+            System.out.printf("Final: A001=%.2f, A002=%.2f (Total=%.2f)%n", safeA001, safeA002, safeTotal);
+            System.out.printf("Expected total: %.2f, Actual total: %.2f → %s%n",
                     initialTotal, safeTotal,
-                    Math.abs(initialTotal - safeTotal) < 0.01 ? "✓ (no money lost!)" : "✗ MONEY LOST!");
+                    Math.abs(initialTotal - safeTotal) < 0.01 ? "✓ NO MONEY LOST!" : "✗ MONEY LOST!");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -108,6 +112,8 @@ public class Demo2Finished {
 
     /**
      * Process transfers WITHOUT any locks — demonstrates race conditions.
+     * Adds Thread.sleep() to make race conditions more likely,
+     * and logs each READ/WRITE to show the problem visually.
      */
     private static void runUnsafe(AccountRepository repository, List<Transaction> batch) {
         ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -115,18 +121,32 @@ public class Demo2Finished {
 
         for (Transaction t : batch) {
             futures.add(executor.submit(() -> {
+                String thread = Thread.currentThread().getName();
                 try {
+                    // READ — multiple threads can read the SAME stale value
                     Account source = repository.findByAccountNumber(t.getSourceAccount());
                     Account target = repository.findByAccountNumber(t.getTargetAccount());
+                    System.out.printf("  [%s] READ  %s=%.2f, %s=%.2f%n",
+                            thread, t.getSourceAccount(), source.getBalance(),
+                            t.getTargetAccount(), target.getBalance());
 
-                    // No lock — multiple threads read/write the same account simultaneously!
+                    // Simulate processing delay — makes race conditions more likely
+                    Thread.sleep(50);
+
                     source.debit(t.getAmount());
                     target.credit(t.getAmount());
 
+                    // WRITE — stale data overwrites other thread's changes
                     repository.update(source);
                     repository.update(target);
+                    System.out.printf("  [%s] WRITE %s=%.2f, %s=%.2f  (%s → %s : %.2f)%n",
+                            thread, t.getSourceAccount(), source.getBalance(),
+                            t.getTargetAccount(), target.getBalance(),
+                            t.getSourceAccount(), t.getTargetAccount(), t.getAmount());
+
                 } catch (Exception e) {
-                    // Silently ignore for demo
+                    System.out.printf("  [%s] ERROR %s → %s : %s%n",
+                            thread, t.getSourceAccount(), t.getTargetAccount(), e.getMessage());
                 }
             }));
         }
@@ -151,23 +171,25 @@ public class Demo2Finished {
         conn.commit();
     }
 
-    private static List<Transaction> generateBatch(int count) {
+    /**
+     * Same fixed batch of 6 transfers as Demo2Starter.
+     */
+    private static List<Transaction> createBatch() {
         List<Transaction> batch = new ArrayList<>();
-        Random random = new Random(42);
+        LocalDateTime now = LocalDateTime.now();
 
-        for (int i = 0; i < count; i++) {
-            boolean direction = random.nextBoolean();
-            double amount = (random.nextInt(10) + 1) * 1000;
-
-            batch.add(Transaction.builder()
-                    .type("TRANSFER")
-                    .sourceAccount(direction ? "A001" : "A002")
-                    .targetAccount(direction ? "A002" : "A001")
-                    .amount(amount)
-                    .fee(0)
-                    .createdAt(LocalDateTime.now())
-                    .build());
-        }
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A001").targetAccount("A002")
+                .amount(5000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A002").targetAccount("A001")
+                .amount(3000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A001").targetAccount("A002")
+                .amount(8000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A002").targetAccount("A001")
+                .amount(2000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A001").targetAccount("A002")
+                .amount(10000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A002").targetAccount("A001")
+                .amount(7000).fee(0).createdAt(now).build());
 
         return batch;
     }
