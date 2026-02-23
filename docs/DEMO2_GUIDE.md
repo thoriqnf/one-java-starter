@@ -286,6 +286,69 @@ Balance check: 150000.00 vs 150000.00 ✓ (no money lost!)
 
 ---
 
+## Bonus Reference
+
+### ReentrantLock Pattern
+
+```java
+private final ReentrantLock lock = new ReentrantLock();
+
+public void safeDebit(double amount) {
+    lock.lock();       // Only one thread can enter at a time
+    try {
+        if (balance < amount) {
+            throw new IllegalStateException("Insufficient balance");
+        }
+        balance -= amount;
+    } finally {
+        lock.unlock();  // ALWAYS unlock in finally block
+    }
+}
+```
+
+### AtomicInteger — Lock-Free Counters
+
+```java
+private final AtomicInteger successCount = new AtomicInteger(0);
+private final AtomicInteger failCount = new AtomicInteger(0);
+
+// Thread-safe increment — no lock needed
+successCount.incrementAndGet();
+failCount.incrementAndGet();
+```
+
+### synchronized vs ReentrantLock
+
+| Feature | `synchronized` | `ReentrantLock` |
+|---|---|---|
+| Simplicity | ✅ Simple keyword | ❌ Manual lock/unlock |
+| Try-lock | ❌ No | ✅ `tryLock()` with timeout |
+| Fair ordering | ❌ No guarantee | ✅ `new ReentrantLock(true)` |
+| Multiple conditions | ❌ One wait set | ✅ Multiple `Condition` objects |
+| Use in banking | Simple cases | Complex transaction locking |
+
+### Architecture Flow
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 1. Load Transactions from PostgreSQL                    │
+│    └── TransactionRepository.findAll()                  │
+├─────────────────────────────────────────────────────────┤
+│ 2. Analyze with Stream API (Demo 1)                     │
+│    └── filter → group → aggregate → report              │
+├─────────────────────────────────────────────────────────┤
+│ 3. Process in Parallel (Demo 2)                         │
+│    ├── ExecutorService (thread pool)                     │
+│    ├── ReentrantLock (protect account balance)           │
+│    └── AtomicInteger (track success/fail)                │
+├─────────────────────────────────────────────────────────┤
+│ 4. Results                                              │
+│    └── Safe, consistent balances + performance stats    │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Demo Flow Summary
 
 ```
