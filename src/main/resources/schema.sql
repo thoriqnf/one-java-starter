@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS accounts (
+    account_number VARCHAR(50) PRIMARY KEY,
+    balance DECIMAL(15, 2) NOT NULL DEFAULT 0.00
+);
