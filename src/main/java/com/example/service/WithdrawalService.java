@@ -20,10 +20,13 @@ public class WithdrawalService {
     }
 
     public void withdraw(String accountNumber, double amount) {
+        // 1. Fetch the account from the database
         Account account = repository.findByAccountNumber(accountNumber);
         
+        // 2. Apply business logic: Deduct the requested amount plus our fixed flat fee
         account.debit(amount + FLAT_FEE);
         
+        // 3. Save the updated balance back to the database
         repository.update(account);
     }
 }

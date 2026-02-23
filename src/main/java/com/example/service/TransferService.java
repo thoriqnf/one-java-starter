@@ -20,12 +20,15 @@ public class TransferService {
     }
 
     public void transfer(String from, String to, double amount) {
+        // 1. Load the current state of both accounts from the database
         Account source = repository.findByAccountNumber(from);
         Account target = repository.findByAccountNumber(to);
 
+        // 2. Perform the business logic in the Domain objects (checks if enough balance, adds/subtracts)
         source.debit(amount);
         target.credit(amount);
 
+        // 3. Save the new state back directly to the database
         repository.update(source);
         repository.update(target);
     }
