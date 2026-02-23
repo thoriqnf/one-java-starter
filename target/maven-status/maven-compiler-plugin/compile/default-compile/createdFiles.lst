@@ -1,8 +1,11 @@
 com/example/service/WithdrawalService.class
+com/example/service/AccountLocker.class
 com/example/demo1/Demo1Finished.class
+com/example/service/BatchProcessor.class
 com/example/repository/AccountRepository.class
 com/example/domain/Transaction.class
 com/example/service/TransactionAnalytics.class
+com/example/demo2/Demo2Starter.class
 com/example/repository/PostgresTransactionRepository.class
 com/example/service/TransferService.class
 com/example/demo1/Demo1Starter.class
