@@ -20,14 +20,16 @@ public class Main {
             conn.setAutoCommit(false);
 
             try (java.sql.Statement statement = conn.createStatement()) {
-                statement.execute("DROP TABLE IF EXISTS account");
-                statement.execute("CREATE TABLE account (" +
+                statement.execute("CREATE TABLE IF NOT EXISTS account (" +
                         "account_number VARCHAR(20) PRIMARY KEY," +
                         "balance NUMERIC(15,2) NOT NULL" +
                         ")");
 
-                statement.execute("INSERT INTO account VALUES ('A001', 100000)");
-                statement.execute("INSERT INTO account VALUES ('A002', 50000)");
+                java.sql.ResultSet rs = statement.executeQuery("SELECT COUNT(*) FROM account");
+                if (rs.next() && rs.getInt(1) == 0) {
+                    statement.execute("INSERT INTO account VALUES ('A001', 100000)");
+                    statement.execute("INSERT INTO account VALUES ('A002', 50000)");
+                }
             }
             conn.commit();
 
@@ -36,10 +38,18 @@ public class Main {
             WithdrawalService withdrawalService = new WithdrawalService(repository);
 
             System.out.println("Processing transfer of 25000 from A001 to A002...");
-            transferService.transfer("A001", "A002", 25000);
+            try {
+                transferService.transfer("A001", "A002", 25000);
+            } catch (Exception e) {
+                System.out.println("Transfer failed: " + e.getMessage());
+            }
 
             System.out.println("Processing first withdrawal of 5000 from A001...");
-            withdrawalService.withdraw("A001", 5000);
+            try {
+                withdrawalService.withdraw("A001", 5000);
+            } catch (Exception e) {
+                System.out.println("Withdrawal failed: " + e.getMessage());
+            }
 
             System.out.println("Processing second withdrawal of 10000 from A002...");
             try {
@@ -51,7 +61,11 @@ public class Main {
 
             conn.commit();
 
+            System.out.println("-------------------------------------------");
             System.out.println("All operations success!");
+            System.out.println("-------------------------------------------");
+            System.out.println("Final Balance A001: " + repository.findByAccountNumber("A001").getBalance());
+            System.out.println("Final Balance A002: " + repository.findByAccountNumber("A002").getBalance());
 
         } catch (Exception e) {
             e.printStackTrace();
