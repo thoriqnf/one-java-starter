@@ -25,18 +25,22 @@ public class AccountLocker {
      * 4. unlockAccounts(): unlock both accounts
      */
 
-    // TODO: Create ConcurrentHashMap<String, ReentrantLock> to store locks
+    private final ConcurrentHashMap<String, ReentrantLock> locks = new ConcurrentHashMap<>();
 
     public ReentrantLock getLock(String accountNumber) {
-        // TODO: Return the lock for this account, creating one if it doesn't exist
-        return new ReentrantLock(); // placeholder — creates a NEW lock every time (wrong!)
+        return locks.computeIfAbsent(accountNumber, k -> new ReentrantLock());
     }
 
     public void lockAccounts(String account1, String account2) {
-        // TODO: Lock both accounts in alphabetical order to prevent deadlocks
+        // Always lock in alphabetical order to prevent deadlocks
+        String first = account1.compareTo(account2) < 0 ? account1 : account2;
+        String second = account1.compareTo(account2) < 0 ? account2 : account1;
+        getLock(first).lock();
+        getLock(second).lock();
     }
 
     public void unlockAccounts(String account1, String account2) {
-        // TODO: Unlock both accounts
+        getLock(account1).unlock();
+        getLock(account2).unlock();
     }
 }

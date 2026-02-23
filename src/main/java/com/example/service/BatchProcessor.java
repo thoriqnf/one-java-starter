@@ -47,7 +47,20 @@ public class BatchProcessor {
      * @param batch the list of transactions to process in parallel
      */
     public void processBatch(List<Transaction> batch) {
-        // TODO: Submit each transfer to the thread pool and wait for all to complete
+        List<Future<Boolean>> futures = new ArrayList<>();
+
+        for (Transaction t : batch) {
+            Future<Boolean> future = executor.submit(() -> processSingleTransfer(t));
+            futures.add(future);
+        }
+
+        for (Future<Boolean> f : futures) {
+            try {
+                f.get();
+            } catch (Exception e) {
+                System.out.println("Task error: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -64,8 +77,25 @@ public class BatchProcessor {
      * @return true if successful, false if failed
      */
     private boolean processSingleTransfer(Transaction t) {
-        // TODO: Lock accounts, perform transfer, unlock in finally block
-        return false; // placeholder
+        locker.lockAccounts(t.getSourceAccount(), t.getTargetAccount());
+        try {
+            Account source = repository.findByAccountNumber(t.getSourceAccount());
+            Account target = repository.findByAccountNumber(t.getTargetAccount());
+
+            source.debit(t.getAmount());
+            target.credit(t.getAmount());
+
+            repository.update(source);
+            repository.update(target);
+
+            successCount.incrementAndGet();
+            return true;
+        } catch (Exception e) {
+            failCount.incrementAndGet();
+            return false;
+        } finally {
+            locker.unlockAccounts(t.getSourceAccount(), t.getTargetAccount());
+        }
     }
 
     /**

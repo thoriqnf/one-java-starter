@@ -10,6 +10,7 @@ com/example/repository/PostgresTransactionRepository.class
 com/example/service/TransferService.class
 com/example/demo1/Demo1Starter.class
 com/example/repository/TransactionRepository.class
+com/example/demo2/Demo2Finished.class
 com/example/domain/Transaction$TransactionBuilder.class
 com/example/repository/PostgresAccountRepository.class
 com/example/Main.class
