@@ -6,6 +6,31 @@ Build a batch transaction processor that processes multiple bank transfers **con
 
 ---
 
+## What is Concurrency?
+
+Concurrency means running multiple tasks **at the same time**. A bank processes thousands of transactions simultaneously — without concurrency, each transaction waits for the previous one.
+
+But concurrent access to shared data (like account balances) causes **race conditions**:
+
+```
+Thread A: reads balance = 10000
+Thread B: reads balance = 10000        ← same value!
+Thread A: balance - 3000 = 7000 → writes 7000
+Thread B: balance - 5000 = 5000 → writes 5000  ← Thread A's debit is LOST!
+```
+
+### Key Concurrency Tools
+
+| Tool | What It Does |
+|---|---|
+| `ExecutorService` | Manages a pool of reusable threads |
+| `Future` | A handle to get the result of an async task |
+| `ReentrantLock` | Only one thread can enter a protected block at a time |
+| `AtomicInteger` | Thread-safe counter (no lock needed) |
+| `ConcurrentHashMap` | Thread-safe Map |
+
+---
+
 ## What You'll Build
 
 A `BatchProcessor` that:
@@ -13,7 +38,54 @@ A `BatchProcessor` that:
 2. Processes them in parallel using `ExecutorService`
 3. Protects account balances with `ReentrantLock` (via `AccountLocker`)
 4. Tracks success/fail counts with `AtomicInteger`
-5. Demonstrates the difference between **unsafe** and **safe** concurrent execution
+
+---
+
+## Full Demo Flow
+
+### Part A: Demo 1 (Stream API + Lambda)
+
+```bash
+# 1. Switch to Demo 1 starter branch
+git checkout day2-demo-1-starter
+
+# 2. Compile and run — shows "not implemented yet"
+mvn clean compile
+mvn exec:java -Dexec.mainClass="com.example.demo1.Demo1Starter"
+
+# 3. Participants implement 4 TODOs in TransactionAnalytics.java
+
+# 4. Recompile and run — shows analytics results
+mvn clean compile
+mvn exec:java -Dexec.mainClass="com.example.demo1.Demo1Starter"
+
+# 5. (Optional) Show finished version
+git checkout day2-demo-1-finished
+mvn clean compile
+mvn exec:java -Dexec.mainClass="com.example.demo1.Demo1Finished"
+```
+
+### Part B: Demo 2 (Concurrency)
+
+```bash
+# 6. Switch to Demo 2 starter branch
+git checkout day2-demo-2-starter
+
+# 7. Compile and run — shows "not implemented yet"
+mvn clean compile
+mvn exec:java -Dexec.mainClass="com.example.demo2.Demo2Starter"
+
+# 8. Participants implement 3 TODOs in AccountLocker.java and BatchProcessor.java
+
+# 9. Recompile and run — shows parallel processing results
+mvn clean compile
+mvn exec:java -Dexec.mainClass="com.example.demo2.Demo2Starter"
+
+# 10. Show finished version (unsafe vs safe comparison)
+git checkout day2-demo-2-finished
+mvn clean compile
+mvn exec:java -Dexec.mainClass="com.example.demo2.Demo2Finished"
+```
 
 ---
 
@@ -25,7 +97,6 @@ A `BatchProcessor` that:
 - **Maven** installed
 - **PostgreSQL** running on `localhost:5432` with user `postgres` / password `postgres`
 - **Demo 1 completed** — the `account` and `transaction_history` tables must exist
-- The existing `Account`, `AccountRepository`, `Transaction` classes are available
 
 ### Step 1: Compile the Project
 
@@ -46,11 +117,11 @@ This will:
 - Generate a batch of 20 random transfers
 - Attempt to process them — but concurrency logic is not implemented yet
 
-**Show this output to participants** — the batch runs single-threaded or fails because TODOs are empty.
+**Show this output to participants** — the batch processing fails because TODOs are empty.
 
 ### Step 3: Implement the TODOs
 
-Participants fill in the 6 TODO methods in `service/AccountLocker.java` and `service/BatchProcessor.java` (see steps below).
+Participants fill in 3 TODO methods in `service/AccountLocker.java` and `service/BatchProcessor.java` (see steps below).
 
 ### Step 4: Recompile and Run Again
 
@@ -77,41 +148,26 @@ This runs the batch **twice**:
 
 ## Step-by-Step Implementation
 
-### Step 1: Understand the Problem — Race Conditions
+### Step 1: Understand the Problem
 
-Without synchronization, two threads withdrawing from the same account can cause data loss:
+Open `Demo2Starter.java` to see the batch setup. It creates 20 transfers between A001 and A002, then calls `BatchProcessor` to process them in parallel. Without locks, race conditions corrupt the balances.
 
-```
-Thread A: reads balance = 10000
-Thread B: reads balance = 10000
-Thread A: balance - 3000 = 7000 → writes 7000
-Thread B: balance - 5000 = 5000 → writes 5000  ← Thread A's debit is LOST!
-```
+### Step 2: Implement the TODOs
 
-The `Demo2Starter` will show this problem first, then you fix it.
+#### TODO 1 — AccountLocker: Thread-safe lock management
 
-### Step 2: Implement AccountLocker
+**File:** `src/main/java/com/example/service/AccountLocker.java` → methods `getLock()`, `lockAccounts()`, `unlockAccounts()`
 
-Open `service/AccountLocker.java`. This provides per-account locking:
-
-#### TODO 1 — Get or create a lock for an account
 ```java
 private final ConcurrentHashMap<String, ReentrantLock> locks = new ConcurrentHashMap<>();
 
 public ReentrantLock getLock(String accountNumber) {
-    // computeIfAbsent is atomic — safe for concurrent access
     return locks.computeIfAbsent(accountNumber, k -> new ReentrantLock());
 }
-```
-**Concept:** `ConcurrentHashMap` + `computeIfAbsent()` for thread-safe lazy initialization
 
-#### TODO 2 — Lock multiple accounts in a consistent order
-```java
 public void lockAccounts(String account1, String account2) {
-    // Always lock in alphabetical order to prevent deadlocks
     String first = account1.compareTo(account2) < 0 ? account1 : account2;
     String second = account1.compareTo(account2) < 0 ? account2 : account1;
-
     getLock(first).lock();
     getLock(second).lock();
 }
@@ -121,27 +177,13 @@ public void unlockAccounts(String account1, String account2) {
     getLock(account2).unlock();
 }
 ```
-**Concept:** Lock ordering to prevent **deadlocks**. If Thread A locks A001→A002 and Thread B locks A002→A001, they deadlock. Alphabetical order prevents this.
 
-### Step 3: Implement BatchProcessor
+**Concurrency concept:** `ConcurrentHashMap.computeIfAbsent()` creates locks lazily and thread-safely. Lock ordering (alphabetical) prevents **deadlocks** — if Thread A locks A001→A002 and Thread B locks A002→A001, they deadlock. Sorting prevents this.
 
-Open `service/BatchProcessor.java`. This orchestrates the parallel execution:
+#### TODO 2 — BatchProcessor: Parallel execution with ExecutorService
 
-#### TODO 3 — Create the ExecutorService
-```java
-private final ExecutorService executor;
-private final AtomicInteger successCount = new AtomicInteger(0);
-private final AtomicInteger failCount = new AtomicInteger(0);
+**File:** `src/main/java/com/example/service/BatchProcessor.java` → method `processBatch()`
 
-public BatchProcessor(AccountRepository repository, AccountLocker locker, int threadCount) {
-    this.repository = repository;
-    this.locker = locker;
-    this.executor = Executors.newFixedThreadPool(threadCount);
-}
-```
-**Concept:** `Executors.newFixedThreadPool()` creates a reusable pool of threads
-
-#### TODO 4 — Submit transfers as Callable tasks
 ```java
 public void processBatch(List<Transaction> batch) {
     List<Future<Boolean>> futures = new ArrayList<>();
@@ -151,19 +193,22 @@ public void processBatch(List<Transaction> batch) {
         futures.add(future);
     }
 
-    // Wait for all to complete
     for (Future<Boolean> f : futures) {
         try {
-            f.get(); // blocks until done
+            f.get();
         } catch (Exception e) {
             System.out.println("Task error: " + e.getMessage());
         }
     }
 }
 ```
-**Concept:** `submit()` returns a `Future` — a handle to the async result. `get()` blocks until done.
 
-#### TODO 5 — Process a single transfer with locks
+**Concurrency concept:** `executor.submit()` sends each transfer to the thread pool. It returns a `Future` — a handle to the async result. `f.get()` blocks until that task finishes. The thread pool runs multiple transfers simultaneously.
+
+#### TODO 3 — BatchProcessor: Thread-safe single transfer
+
+**File:** `src/main/java/com/example/service/BatchProcessor.java` → method `processSingleTransfer()`
+
 ```java
 private boolean processSingleTransfer(Transaction t) {
     locker.lockAccounts(t.getSourceAccount(), t.getTargetAccount());
@@ -181,33 +226,20 @@ private boolean processSingleTransfer(Transaction t) {
         return true;
     } catch (Exception e) {
         failCount.incrementAndGet();
-        System.out.println("Transfer failed (" + t.getSourceAccount() + " → "
-                + t.getTargetAccount() + "): " + e.getMessage());
         return false;
     } finally {
         locker.unlockAccounts(t.getSourceAccount(), t.getTargetAccount());
     }
 }
 ```
-**Concept:** Lock → try → business logic → finally unlock. `AtomicInteger.incrementAndGet()` is thread-safe.
 
-#### TODO 6 — Shutdown and report
-```java
-public void shutdown() throws InterruptedException {
-    executor.shutdown();
-    executor.awaitTermination(30, TimeUnit.SECONDS);
-}
-
-public int getSuccessCount() { return successCount.get(); }
-public int getFailCount() { return failCount.get(); }
-```
-**Concept:** `shutdown()` stops accepting new tasks. `awaitTermination()` waits for running tasks to finish.
+**Concurrency concept:** Lock → try → business logic → finally unlock. The `finally` block **always** runs, even if an exception occurs, ensuring locks are released. `AtomicInteger.incrementAndGet()` is thread-safe without needing a lock.
 
 ---
 
 ## Running the Finished App
 
-After all 6 TODOs are implemented, compile and run:
+After all 3 TODOs are implemented, compile and run:
 
 ```bash
 mvn clean compile
@@ -249,13 +281,12 @@ Balance check: 150000.00 = 150000.00 ✓ (no money lost!)
 
 | Concept | Where Used |
 |---|---|
-| `ExecutorService` | Managing thread pool for parallel transfers |
-| `Callable` / `Future` | Submitting tasks and getting results |
-| `ReentrantLock` | Protecting account reads/writes per account |
-| `ConcurrentHashMap` | Thread-safe storage for per-account locks |
-| `AtomicInteger` | Counting successes/failures without locks |
-| Lock ordering | Preventing deadlocks (alphabetical account order) |
-| `shutdown()` + `awaitTermination()` | Graceful thread pool cleanup |
+| `ExecutorService` | TODO 2 — Managing thread pool for parallel transfers |
+| `Future` | TODO 2 — Getting results from async tasks |
+| `ReentrantLock` | TODO 1 — Protecting account per-account |
+| `ConcurrentHashMap` | TODO 1 — Thread-safe lock storage |
+| `AtomicInteger` | TODO 3 — Counting successes/failures |
+| Lock ordering | TODO 1 — Preventing deadlocks |
 
 ---
 
@@ -264,8 +295,8 @@ Balance check: 150000.00 = 150000.00 ✓ (no money lost!)
 ```
 1. mvn clean compile                    → Compile everything
 2. mvn exec:java ...Demo2Starter        → Show "not implemented" state
-3. Implement AccountLocker TODOs        → Explain locks + deadlock prevention
-4. Implement BatchProcessor TODOs       → Explain ExecutorService + Future
+3. Implement AccountLocker (TODO 1)     → Explain locks + deadlock prevention
+4. Implement BatchProcessor (TODO 2+3)  → Explain ExecutorService + Future
 5. mvn clean compile && run Starter     → Show working parallel processing
 6. mvn exec:java ...Demo2Finished       → Show unsafe vs safe comparison (WOW moment)
 ```
