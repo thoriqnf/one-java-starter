@@ -11,6 +11,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <exec.mainClass>com.example.Main</exec.mainClass>
     </properties>
 
     <dependencies>
@@ -34,7 +35,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.1</version>
                 <configuration>
-                    <mainClass>com.example.Main</mainClass>
+                    <mainClass>${exec.mainClass}</mainClass>
                 </configuration>
             </plugin>
         </plugins>
