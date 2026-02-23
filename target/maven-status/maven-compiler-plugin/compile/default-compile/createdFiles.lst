@@ -1,6 +1,12 @@
 com/example/service/WithdrawalService.class
-com/example/service/TransferService.class
-com/example/repository/PostgresAccountRepository.class
 com/example/repository/AccountRepository.class
+com/example/domain/Transaction.class
+com/example/service/TransactionAnalytics.class
+com/example/repository/PostgresTransactionRepository.class
+com/example/service/TransferService.class
+com/example/demo1/Demo1Starter.class
+com/example/repository/TransactionRepository.class
+com/example/domain/Transaction$TransactionBuilder.class
+com/example/repository/PostgresAccountRepository.class
 com/example/Main.class
 com/example/domain/Account.class
