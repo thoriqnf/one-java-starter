@@ -217,30 +217,26 @@ mvn exec:java -Dexec.mainClass="com.example.demo2.Demo2Finished"
 ### Expected Output
 
 ```
-===== BATCH TRANSACTION PROCESSOR =====
+==================================================
+  ROUND 1: WITHOUT LOCKS (UNSAFE)
+==================================================
 
-Initial Balances:
-  A001: 100000.00
-  A002: 50000.00
+Initial Balances: A001=100000.00, A002=50000.00 (Total=150000.00)
+Processing 20 transfers with 4 threads (NO LOCKS)...
 
-Processing 20 transfers with 4 threads...
+Final Balances: A001=108000.00, A002=62000.00 (Total=170000.00)
+Balance check: 150000.00 vs 170000.00 ✗ MONEY LOST!
 
-[Thread-1] A001 → A002 : 5000.00 ✓
-[Thread-3] A002 → A001 : 3000.00 ✓
-[Thread-2] A001 → A002 : 7000.00 ✓
-[Thread-4] A001 → A002 : 2000.00 ✓
-...
+==================================================
+  ROUND 2: WITH LOCKS (SAFE)
+==================================================
 
-===== RESULTS =====
-Successful : 18
-Failed     : 2 (insufficient balance)
-Time taken : 245ms
+Initial Balances: A001=100000.00, A002=50000.00 (Total=150000.00)
+Processing 20 transfers with 4 threads (WITH LOCKS)...
 
-Final Balances:
-  A001: 78000.00
-  A002: 72000.00
-
-Balance check: 150000.00 = 150000.00 ✓ (no money lost!)
+Successful: 20, Failed: 0
+Final Balances: A001=100000.00, A002=50000.00 (Total=150000.00)
+Balance check: 150000.00 vs 150000.00 ✓ (no money lost!)
 ```
 
 ---
