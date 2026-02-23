@@ -281,3 +281,46 @@ mvn exec:java -Dexec.mainClass="com.example.demo1.Demo1Starter"
 | `Comparator.comparing()` | TODO 4 — Sort by amount descending |
 | Method references | `Transaction::getAmount`, `Transaction::getType` |
 | Lambda expressions | `t -> t.getType().equals(type)` in filter |
+
+---
+
+## Bonus Reference
+
+### Collectors — More Examples
+
+```java
+// Group transactions into lists by type
+Map<String, List<Transaction>> byType = transactions.stream()
+        .collect(Collectors.groupingBy(Transaction::getType));
+
+// Get statistics (count, sum, min, max, average)
+DoubleSummaryStatistics stats = transactions.stream()
+        .collect(Collectors.summarizingDouble(Transaction::getAmount));
+
+System.out.println("Average: " + stats.getAverage());
+System.out.println("Max: " + stats.getMax());
+```
+
+### Method References
+
+| Type | Syntax | Equivalent Lambda |
+|---|---|---|
+| Static method | `Math::abs` | `x -> Math.abs(x)` |
+| Instance method | `Transaction::getAmount` | `t -> t.getAmount()` |
+| Constructor | `ArrayList::new` | `() -> new ArrayList<>()` |
+
+### Composing Predicates
+
+```java
+Predicate<Transaction> isTransfer = t -> t.getType().equals("TRANSFER");
+Predicate<Transaction> isLarge = t -> t.getAmount() > 10000;
+
+// Combine with AND / OR / negate
+Predicate<Transaction> largeTransfers = isTransfer.and(isLarge);
+Predicate<Transaction> transferOrLarge = isTransfer.or(isLarge);
+Predicate<Transaction> notTransfer = isTransfer.negate();
+
+List<Transaction> results = transactions.stream()
+        .filter(largeTransfers)
+        .collect(Collectors.toList());
+```
