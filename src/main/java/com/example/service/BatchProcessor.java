@@ -70,8 +70,10 @@ public class BatchProcessor {
      * Hint:
      *   1. Lock both accounts using locker.lockAccounts()
      *   2. In a try block: load accounts, debit/credit, update, increment successCount
-     *   3. In catch block: increment failCount
+     *   3. In catch block: increment failCount, print error
      *   4. In finally block: ALWAYS unlock both accounts
+     *   5. Print the thread name and transfer details:
+     *      System.out.printf("[%s] %s → %s : %.2f ✓%n", Thread.currentThread().getName(), ...)
      *
      * @param t the transaction to process
      * @return true if successful, false if failed

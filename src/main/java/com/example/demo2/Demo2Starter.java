@@ -12,13 +12,12 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 /**
  * Demo 2 Starter — Batch Transaction Processor
  *
  * This demo teaches Concurrency and Thread-Safe programming by processing
- * a batch of 20 bank transfers in parallel.
+ * a batch of bank transfers in parallel.
  *
  * Run this class, then implement the TODOs in AccountLocker.java and BatchProcessor.java.
  */
@@ -42,8 +41,8 @@ public class Demo2Starter {
             int threadCount = 4;
             BatchProcessor processor = new BatchProcessor(repository, locker, threadCount);
 
-            // --- Generate a batch of random transfers ---
-            List<Transaction> batch = generateBatch(20);
+            // --- Fixed batch of 6 transfers (easy to follow) ---
+            List<Transaction> batch = createBatch();
 
             System.out.println("===== BATCH TRANSACTION PROCESSOR =====\n");
 
@@ -53,6 +52,13 @@ public class Demo2Starter {
             System.out.printf("  A002: %.2f%n", repository.findByAccountNumber("A002").getBalance());
             double initialTotal = repository.findByAccountNumber("A001").getBalance()
                     + repository.findByAccountNumber("A002").getBalance();
+
+            System.out.println("\nBatch to process:");
+            for (int i = 0; i < batch.size(); i++) {
+                Transaction t = batch.get(i);
+                System.out.printf("  %d. %s → %s : %.2f%n", i + 1,
+                        t.getSourceAccount(), t.getTargetAccount(), t.getAmount());
+            }
 
             System.out.printf("%nProcessing %d transfers with %d threads...%n%n", batch.size(), threadCount);
 
@@ -104,25 +110,28 @@ public class Demo2Starter {
     }
 
     /**
-     * Generate a batch of random transfers between A001 and A002.
+     * Create a fixed batch of 6 transfers (easy to follow in output).
+     * Expected result if all succeed:
+     *   A001: 100000 - 5000 - 8000 - 10000 + 3000 + 2000 + 7000 = 89000
+     *   A002:  50000 + 5000 + 8000 + 10000 - 3000 - 2000 - 7000 = 61000
+     *   Total stays: 150000
      */
-    private static List<Transaction> generateBatch(int count) {
+    private static List<Transaction> createBatch() {
         List<Transaction> batch = new ArrayList<>();
-        Random random = new Random(42); // fixed seed for reproducible results
+        LocalDateTime now = LocalDateTime.now();
 
-        for (int i = 0; i < count; i++) {
-            boolean direction = random.nextBoolean(); // true = A001→A002, false = A002→A001
-            double amount = (random.nextInt(10) + 1) * 1000; // 1000 to 10000
-
-            batch.add(Transaction.builder()
-                    .type("TRANSFER")
-                    .sourceAccount(direction ? "A001" : "A002")
-                    .targetAccount(direction ? "A002" : "A001")
-                    .amount(amount)
-                    .fee(0)
-                    .createdAt(LocalDateTime.now())
-                    .build());
-        }
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A001").targetAccount("A002")
+                .amount(5000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A002").targetAccount("A001")
+                .amount(3000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A001").targetAccount("A002")
+                .amount(8000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A002").targetAccount("A001")
+                .amount(2000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A001").targetAccount("A002")
+                .amount(10000).fee(0).createdAt(now).build());
+        batch.add(Transaction.builder().type("TRANSFER").sourceAccount("A002").targetAccount("A001")
+                .amount(7000).fee(0).createdAt(now).build());
 
         return batch;
     }
