@@ -28,8 +28,9 @@ public class TransactionAnalytics {
      * @return a new list containing only transactions of the given type
      */
     public List<Transaction> filterByType(List<Transaction> transactions, String type) {
-        // TODO: Implement using Stream API
-        return List.of(); // placeholder — returns empty list
+        return transactions.stream()
+                .filter(t -> t.getType().equals(type))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -42,8 +43,9 @@ public class TransactionAnalytics {
      * @return the sum of all transaction amounts
      */
     public double totalAmount(List<Transaction> transactions) {
-        // TODO: Implement using Stream API
-        return 0.0; // placeholder
+        return transactions.stream()
+                .mapToDouble(Transaction::getAmount)
+                .sum();
     }
 
     /**
@@ -56,8 +58,11 @@ public class TransactionAnalytics {
      * @return a Map where key = type, value = total amount for that type
      */
     public Map<String, Double> totalByType(List<Transaction> transactions) {
-        // TODO: Implement using Stream API
-        return Map.of(); // placeholder
+        return transactions.stream()
+                .collect(Collectors.groupingBy(
+                        Transaction::getType,
+                        Collectors.summingDouble(Transaction::getAmount)
+                ));
     }
 
     /**
@@ -71,7 +76,9 @@ public class TransactionAnalytics {
      * @return a list of the top N transactions by amount
      */
     public List<Transaction> topByAmount(List<Transaction> transactions, int n) {
-        // TODO: Implement using Stream API
-        return List.of(); // placeholder
+        return transactions.stream()
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed())
+                .limit(n)
+                .collect(Collectors.toList());
     }
 }
