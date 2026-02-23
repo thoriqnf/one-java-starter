@@ -1,40 +1,55 @@
-import java.sql.*;
+package com.example.repository;
 
-public class JdbcAccountRepository implements AccountRepository {
+import com.example.domain.Account;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+public class PostgresAccountRepository implements AccountRepository {
+
     private final Connection connection;
 
-    public JdbcAccountRepository(Connection connection) {
+    public PostgresAccountRepository(Connection connection) {
         this.connection = connection;
     }
 
     @Override
     public Account findByAccountNumber(String accountNumber) {
-        String sql = "SELECT * FROM accounts WHERE account_number = ?";
+        String sql = "SELECT account_number, balance FROM account WHERE account_number = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, accountNumber);
+
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return new Account(
-                        rs.getString("account_number"),
-                        rs.getDouble("balance")
+                            rs.getString("account_number"),
+                            rs.getDouble("balance")
                     );
                 }
             }
+
+            throw new IllegalArgumentException("Account not found: " + accountNumber);
+
         } catch (SQLException e) {
-            throw new RuntimeException("Error finding account", e);
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     @Override
     public void update(Account account) {
-        String sql = "UPDATE accounts SET balance = ? WHERE account_number = ?";
+        String sql = "UPDATE account SET balance = ? WHERE account_number = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setDouble(1, account.getBalance());
             stmt.setString(2, account.getAccountNumber());
+
             stmt.executeUpdate();
+
         } catch (SQLException e) {
-            throw new RuntimeException("Error updating account", e);
+            throw new RuntimeException(e);
         }
     }
 }
